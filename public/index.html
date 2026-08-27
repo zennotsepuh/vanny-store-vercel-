@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vanny Store</title>
+  <style>
+    /* STYLE SAMA KAYAK SEBELUMNYA, gue singkatin biar nggak kepanjangan */
+    * { margin:0; padding:0; box-sizing:border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background:#f5f3f0; padding:20px; }
+    header { background: linear-gradient(135deg, #1e1e2f, #2a1e3c); color:#fff; padding:30px 20px; border-radius:20px; text-align:center; margin-bottom:30px; }
+    header h1 { font-size:2.8rem; }
+    .cart-badge { background:#e94560; padding:6px 16px; border-radius:30px; display:inline-block; margin-top:12px; font-weight:600; }
+    .products { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); gap:25px; margin-top:20px; }
+    .product { background:#fff; border-radius:18px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,0.06); text-align:center; border:1px solid #eee; transition:0.2s; }
+    .product:hover { transform:translateY(-6px); border-color:#b197fc; }
+    .product h3 { font-size:1.3rem; margin-bottom:6px; }
+    .product .price { font-weight:700; color:#2a1e3c; font-size:1.2rem; margin:10px 0; }
+    .product button { background:#1e1e2f; color:#fff; border:none; padding:10px 20px; border-radius:40px; font-weight:600; cursor:pointer; width:100%; }
+    .product button:hover { background:#e94560; }
+    .cart-section { margin-top:50px; background:#fff; border-radius:24px; padding:25px; border:1px solid #eaeaea; }
+    .cart-section h2 { margin-bottom:16px; font-size:1.8rem; border-left:6px solid #e94560; padding-left:16px; }
+    #cart-items { list-style:none; padding:0; }
+    #cart-items li { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f0eef0; }
+    #cart-total { font-weight:700; font-size:1.4rem; margin-top:18px; text-align:right; }
+    .checkout-btn { background:#2a1e3c; color:white; border:none; padding:14px 28px; border-radius:60px; font-weight:700; font-size:1rem; cursor:pointer; margin-top:15px; width:100%; }
+    .checkout-btn:hover { background:#e94560; }
+    footer { margin-top:40px; text-align:center; color:#888; }
+    .empty-cart { opacity:0.5; padding:12px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🛍️ Vanny Store</h1>
+  <p>Style • Elegan • Nyaman</p>
+  <span class="cart-badge" id="cart-count">🛒 0</span>
+</header>
+
+<div class="products" id="product-list"></div>
+
+<div class="cart-section">
+  <h2>🧺 Keranjang Belanja</h2>
+  <ul id="cart-items"><li class="empty-cart">Keranjang masih kosong.</li></ul>
+  <div id="cart-total">Total: Rp 0</div>
+  <button class="checkout-btn" id="checkout-btn">✅ Checkout Sekarang</button>
+</div>
+
+<footer>© 2026 Vanny Store — Dibuat dengan Papizen</footer>
+
+<script>
+  // =============== PAKE RELATIVE URL ===============
+  const API_URL = '/api';
+  let products = [];
+  let cart = [];
+
+  async function loadProducts() {
+    const res = await fetch(`${API_URL}/products`);
+    products = await res.json();
+    renderProducts();
+  }
+
+  function renderProducts() {
+    const container = document.getElementById('product-list');
+    container.innerHTML = '';
+    products.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'product';
+      card.innerHTML = `
+        <div style="font-size:3rem;">${p.emoji}</div>
+        <h3>${p.name}</h3>
+        <div class="price">Rp ${p.price.toLocaleString()}</div>
+        <button data-id="${p.id}">Tambah ke Keranjang</button>
+      `;
+      container.appendChild(card);
+    });
+
+    document.querySelectorAll('.product button').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const id = parseInt(this.dataset.id);
+        const product = products.find(p => p.id === id);
+        const existing = cart.find(item => item.id === id);
+        if (existing) existing.qty += 1;
+        else cart.push({ ...product, qty: 1 });
+        updateCartUI();
+      });
+    });
+  }
+
+  function updateCartUI() {
+    const cartList = document.getElementById('cart-items');
+    const totalEl = document.getElementById('cart-total');
+    const countEl = document.getElementById('cart-count');
+
+    if (cart.length === 0) {
+      cartList.innerHTML = `<li class="empty-cart">Keranjang masih kosong.</li>`;
+      totalEl.textContent = 'Total: Rp 0';
+      countEl.textContent = '🛒 0';
+      return;
+    }
+
+    let html = '', total = 0, totalQty = 0;
+    cart.forEach(item => {
+      const sub = item.price * item.qty;
+      total += sub;
+      totalQty += item.qty;
+      html += `<li><span>${item.emoji} ${item.name} x${item.qty}</span><span>Rp ${sub.toLocaleString()}</span></li>`;
+    });
+    cartList.innerHTML = html;
+    totalEl.textContent = `Total: Rp ${total.toLocaleString()}`;
+    countEl.textContent = `🛒 ${totalQty}`;
+  }
+
+  document.getElementById('checkout-btn').addEventListener('click', async function() {
+    if (cart.length === 0) {
+      alert('⚠️ Keranjang kosong, bos!');
+      return;
+    }
+    const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const items = cart.map(i => ({ name: i.name, qty: i.qty, price: i.price }));
+
+    try {
+      const res = await fetch(`${API_URL}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items, total })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Pesanan berhasil!\nID Order: ${data.orderId}\nTotal: Rp ${total.toLocaleString()}\nTerima kasih belanja di Vanny Store!`);
+        cart = [];
+        updateCartUI();
+      } else {
+        alert('❌ Gagal checkout: ' + data.error);
+      }
+    } catch (err) {
+      alert('❌ Gagal konek ke server.');
+    }
+  });
+
+  loadProducts();
+  updateCartUI();
+</script>
+</body>
+</html>
