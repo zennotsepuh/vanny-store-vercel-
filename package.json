@@ -1,0 +1,8 @@
+{
+  "name": "vanny-store-vercel",
+  "version": "1.0.0",
+  "description": "Vanny Store - Deployed on Vercel",
+  "dependencies": {
+    "sqlite3": "^5.1.6"
+  }
+}
